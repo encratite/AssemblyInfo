@@ -1,4 +1,60 @@
-require 'nil/file'
+def readFile(path)
+  begin
+    file = File.open(path, 'rb')
+    output = file.read
+    file.close
+    return output
+  rescue Errno::ENOENT
+    return nil
+  end
+end
+
+def readLines(path)
+  data = readFile path
+  return nil if data == nil
+  data = data.gsub("\r", '')
+  return data.split "\n"
+end
+
+def writeFile(path, data)
+  begin
+    file = File.open(path, 'wb+')
+    file.write data
+    file.close
+  rescue Errno::EINVAL
+    return nil
+  end
+end
+
+def getOS
+  names =
+    {
+    'mswin32' => :windows,
+    'linux' => :linux,
+  }
+
+  tokens = RUBY_PLATFORM.split '-'
+  os = tokens[1]
+
+  return names[os]
+end
+
+def joinPaths(*arguments)
+  windowsSeparator = '\\'
+  unixSeparator = '/'
+
+  separator =
+    getOS == :windows ?
+  windowsSeparator :
+    unixSeparator
+
+  expression = Regexp.new "\\#{separator}+"
+  path = arguments.join(separator).gsub(expression, separator)
+  if getOS == :windows
+    path = path.gsub(unixSeparator, windowsSeparator)
+  end
+  return path
+end
 
 targets = [
   'x86',
@@ -11,9 +67,9 @@ modifiedPath = Dir.pwd
 targets.each do |target|
   modifiedPath = modifiedPath.gsub("/#{target}", '')
 end
-properties = Nil.joinPaths(modifiedPath, 'Properties')
-inputPath = Nil.joinPaths(properties, 'AssemblyInfo.template.cs')
-outputPath = Nil.joinPaths(properties, 'AssemblyInfo.cs')
+properties = joinPaths(modifiedPath, 'Properties')
+inputPath = joinPaths(properties, 'AssemblyInfo.template.cs')
+outputPath = joinPaths(properties, 'AssemblyInfo.cs')
 
 lines = nil
 status = IO.popen('git log --pretty=oneline') do |io|
@@ -23,7 +79,7 @@ end
 pattern = /^[^ ].*? \((\d+)\):$/
 revision = lines.size
 
-lines = Nil.readLines(inputPath)
+lines = readLines(inputPath)
 if lines == nil
   puts "Unable to read file #{inputPath}"
   exit
@@ -44,4 +100,4 @@ lines.map! do |line|
 end
 
 output = lines.join("\n")
-Nil.writeFile(outputPath, output)
+writeFile(outputPath, output)
